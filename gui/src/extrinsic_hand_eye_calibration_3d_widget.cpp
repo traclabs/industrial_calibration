@@ -248,7 +248,7 @@ void ExtrinsicHandEyeCalibration3DWidget::loadObservations(const std::string& ob
 
     // Add a column entry for the homography error
     auto homography_item = new QTreeWidgetItem(item);
-    homography_item->setData(0, Qt::EditRole, "Homography error (px)");
+    homography_item->setData(0, Qt::EditRole, "Homography error (m)");
     info(homography_item, "-");
 
     ui_->tree_widget_observations->addTopLevelItem(item);
@@ -276,6 +276,13 @@ void ExtrinsicHandEyeCalibration3DWidget::drawImage(QTreeWidgetItem* item, int c
     return;
   }
 
+  QString cloud_file = item->data(0, CLOUD_FILE_NAME_ROLE).value<QString>();
+  if (!QFile(cloud_file).exists())
+  {
+    error(item, "Cloud file does not exist");
+    return;
+  }
+
   try
   {
     loadTargetFinder();
@@ -295,8 +302,13 @@ void ExtrinsicHandEyeCalibration3DWidget::drawImage(QTreeWidgetItem* item, int c
 
     // Compute the homography error
     Correspondence2D3D::Set corrs = target_finder_->target().createCorrespondences(features);
-    RandomCorrespondenceSampler random_sampler(corrs.size(), corrs.size() / 3, RANDOM_SEED);
-    Eigen::VectorXd homography_error = calculateHomographyError(corrs, random_sampler);
+
+    pcl::PointCloud<pcl::PointXYZ> cloud;
+    pcl::io::loadPCDFile(cloud_file.toStdString(), cloud);
+    Correspondence3D3D::Set corrs_3d = get3DCorrespondences(cloud, corrs, image.size[1]);
+
+    RandomCorrespondenceSampler random_sampler(corrs_3d.size(), corrs_3d.size() / 3, RANDOM_SEED);
+    Eigen::VectorXd homography_error = calculateHomographyError(corrs_3d, random_sampler);
     double homography_error_mean = homography_error.array().mean();
 
     // Save the homography error to the tree

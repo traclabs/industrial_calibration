@@ -37,14 +37,14 @@
               <number>4</number>
              </property>
              <property name="value">
-              <double>2.000000000000000</double>
+              <double>0.005000000000000</double>
              </property>
             </widget>
            </item>
            <item row="0" column="1">
             <widget class="QLabel" name="label">
              <property name="text">
-              <string>Homography Threshold (px)</string>
+              <string>Homography Threshold (m)</string>
              </property>
             </widget>
            </item>
