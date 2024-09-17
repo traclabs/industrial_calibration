@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 
   // Create the calibration main widget
   industrial_calibration::ExtrinsicHandEyeCalibration3DWidget w;
-  w.setWindowTitle("Extrinsic Hand Eye Calibration");
+  w.setWindowTitle("Extrinsic Hand Eye Calibration 3D");
   w.setWindowIcon(QIcon(":/icons/icon.jpg"));
 
   // Attempt to run headless if the configuration file (argv[1]), observation file (argv[2]), and results file (argv[3])
