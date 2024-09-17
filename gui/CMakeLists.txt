@@ -31,6 +31,8 @@ add_library(
   # Extrinsic hand-eye calibration widget
   src/extrinsic_hand_eye_calibration_widget.ui
   src/extrinsic_hand_eye_calibration_widget.cpp
+  src/extrinsic_hand_eye_calibration_widget_2d.ui
+  src/extrinsic_hand_eye_calibration_widget_2d.cpp
   # Camera intrinsic calibration widget
   src/camera_intrinsic_calibration_widget.ui
   src/camera_intrinsic_calibration_widget.cpp)
@@ -46,6 +48,10 @@ target_link_libraries(
 # Add extrinsic hand-eye calibration application
 add_executable(${PROJECT_NAME}_extrinsic_hand_eye_calibration_app src/app/extrinsic_hand_eye_calibration_app.cpp)
 target_link_libraries(${PROJECT_NAME}_extrinsic_hand_eye_calibration_app PRIVATE ${PROJECT_NAME}_gui)
+
+# Add extrinsic hand-eye calibration application
+add_executable(${PROJECT_NAME}_extrinsic_hand_eye_calibration_2d_app src/app/extrinsic_hand_eye_calibration_2d_app.cpp)
+target_link_libraries(${PROJECT_NAME}_extrinsic_hand_eye_calibration_2d_app PRIVATE ${PROJECT_NAME}_gui)
 
 # Add camera intrinsic calibration application
 add_executable(${PROJECT_NAME}_camera_intrinsic_calibration_app src/app/camera_intrinsic_calibration_app.cpp)
@@ -65,6 +71,7 @@ configure_component(
   TARGETS
   ${PROJECT_NAME}_gui
   ${PROJECT_NAME}_extrinsic_hand_eye_calibration_app
+  ${PROJECT_NAME}_extrinsic_hand_eye_calibration_2d_app
   ${PROJECT_NAME}_camera_intrinsic_calibration_app
   DEPENDENCIES
   "industrial_calibration COMPONENTS analysis target_finders_opencv"
