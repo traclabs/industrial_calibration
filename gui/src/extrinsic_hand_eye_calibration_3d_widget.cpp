@@ -1,6 +1,6 @@
-#include "ui_extrinsic_hand_eye_calibration_widget_2d.h"
+#include "ui_extrinsic_hand_eye_calibration_3d_widget.h"
 
-#include <industrial_calibration/gui/extrinsic_hand_eye_calibration_2d_widget.h>
+#include <industrial_calibration/gui/extrinsic_hand_eye_calibration_3d_widget.h>
 #include <industrial_calibration/gui/target_finder.h>
 #include <industrial_calibration/gui/camera_intrinsics.h>
 #include <industrial_calibration/gui/transform_guess.h>
@@ -26,9 +26,13 @@
 #include <QScrollBar>
 #include <QVBoxLayout>
 
+#include <pcl/io/pcd_io.h>
+#include "point_cloud_circle_finder.hpp"
+
 static const unsigned RANDOM_SEED = 1;
 static const int IMAGE_FILE_NAME_ROLE = Qt::UserRole + 1;
 static const int POSE_FILE_NAME_ROLE = Qt::UserRole + 2;
+static const int CLOUD_FILE_NAME_ROLE = Qt::UserRole + 3;
 static const int IDX_FEATURES = 0;
 static const int IDX_HOMOGRAPHY = 1;
 
@@ -53,9 +57,9 @@ static void error(QTreeWidgetItem* item, const QString& message)
 
 namespace industrial_calibration
 {
-ExtrinsicHandEyeCalibration2DWidget::ExtrinsicHandEyeCalibration2DWidget(QWidget* parent)
+ExtrinsicHandEyeCalibration3DWidget::ExtrinsicHandEyeCalibration3DWidget(QWidget* parent)
   : QMainWindow(parent)
-  , ui_(new Ui::ExtrinsicHandEyeCalibration2D())
+  , ui_(new Ui::ExtrinsicHandEyeCalibration3D())
   , target_finder_widget_(new TargetFinderWidget(this))
   , camera_intrinsics_widget_(new CameraIntrinsicsWidget(this))
   , camera_transform_guess_widget_(new TransformGuess(this))
@@ -117,21 +121,21 @@ ExtrinsicHandEyeCalibration2DWidget::ExtrinsicHandEyeCalibration2DWidget(QWidget
   });
 
   // Set up push buttons
-  connect(ui_->action_load_configuration, &QAction::triggered, this, &ExtrinsicHandEyeCalibration2DWidget::onLoadConfig);
-  connect(ui_->action_calibrate, &QAction::triggered, this, &ExtrinsicHandEyeCalibration2DWidget::onCalibrate);
-  connect(ui_->action_save, &QAction::triggered, this, &ExtrinsicHandEyeCalibration2DWidget::onSaveResults);
-  connect(ui_->action_load_data, &QAction::triggered, this, &ExtrinsicHandEyeCalibration2DWidget::onLoadObservations);
+  connect(ui_->action_load_configuration, &QAction::triggered, this, &ExtrinsicHandEyeCalibration3DWidget::onLoadConfig);
+  connect(ui_->action_calibrate, &QAction::triggered, this, &ExtrinsicHandEyeCalibration3DWidget::onCalibrate);
+  connect(ui_->action_save, &QAction::triggered, this, &ExtrinsicHandEyeCalibration3DWidget::onSaveResults);
+  connect(ui_->action_load_data, &QAction::triggered, this, &ExtrinsicHandEyeCalibration3DWidget::onLoadObservations);
   connect(ui_->tree_widget_observations, &QTreeWidget::itemClicked, this,
-          &ExtrinsicHandEyeCalibration2DWidget::drawImage);
+          &ExtrinsicHandEyeCalibration3DWidget::drawImage);
 
   // Set up the plugin loader
   loader_.search_libraries.insert(INDUSTRIAL_CALIBRATION_PLUGIN_LIBRARIES);
   loader_.search_libraries_env = INDUSTRIAL_CALIBRATION_SEARCH_LIBRARIES_ENV;
 }
 
-ExtrinsicHandEyeCalibration2DWidget::~ExtrinsicHandEyeCalibration2DWidget() { delete ui_; }
+ExtrinsicHandEyeCalibration3DWidget::~ExtrinsicHandEyeCalibration3DWidget() { delete ui_; }
 
-void ExtrinsicHandEyeCalibration2DWidget::closeEvent(QCloseEvent* event)
+void ExtrinsicHandEyeCalibration3DWidget::closeEvent(QCloseEvent* event)
 {
   QMessageBox::StandardButton ret = QMessageBox::question(this, "Exit", "Are you sure you want to exit?");
   switch (ret)
@@ -144,7 +148,7 @@ void ExtrinsicHandEyeCalibration2DWidget::closeEvent(QCloseEvent* event)
   }
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::onLoadConfig()
+void ExtrinsicHandEyeCalibration3DWidget::onLoadConfig()
 {
   try
   {
@@ -164,7 +168,7 @@ void ExtrinsicHandEyeCalibration2DWidget::onLoadConfig()
   }
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::loadConfig(const std::string& config_file)
+void ExtrinsicHandEyeCalibration3DWidget::loadConfig(const std::string& config_file)
 {
   // Load all of the configurations before setting GUI items
   YAML::Node node = YAML::LoadFile(config_file);
@@ -183,7 +187,7 @@ void ExtrinsicHandEyeCalibration2DWidget::loadConfig(const std::string& config_f
   ui_->action_static_camera->setChecked(static_camera);
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::loadTargetFinder()
+void ExtrinsicHandEyeCalibration3DWidget::loadTargetFinder()
 {
   // Get target type and currentconfig
   YAML::Node target_finder_config = target_finder_widget_->save();
@@ -193,7 +197,7 @@ void ExtrinsicHandEyeCalibration2DWidget::loadTargetFinder()
   target_finder_ = factory_->create(target_finder_config);
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::onLoadObservations()
+void ExtrinsicHandEyeCalibration3DWidget::onLoadObservations()
 {
   try
   {
@@ -211,7 +215,7 @@ void ExtrinsicHandEyeCalibration2DWidget::onLoadObservations()
   }
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::loadObservations(const std::string& observations_file)
+void ExtrinsicHandEyeCalibration3DWidget::loadObservations(const std::string& observations_file)
 {
   QFileInfo observations_file_info(QString::fromStdString(observations_file));
 
@@ -228,11 +232,14 @@ void ExtrinsicHandEyeCalibration2DWidget::loadObservations(const std::string& ob
         observations_file_info.absoluteDir().filePath(QString::fromStdString(getMember<std::string>(entry, "image")));
     QString pose_file =
         observations_file_info.absoluteDir().filePath(QString::fromStdString(getMember<std::string>(entry, "pose")));
+    QString cloud_file =
+        observations_file_info.absoluteDir().filePath(QString::fromStdString(getMember<std::string>(entry, "cloud")));
 
     auto item = new QTreeWidgetItem();
     item->setData(0, Qt::EditRole, "Observation " + QString::number(i));
     item->setData(0, IMAGE_FILE_NAME_ROLE, image_file);
     item->setData(0, POSE_FILE_NAME_ROLE, pose_file);
+    item->setData(0, CLOUD_FILE_NAME_ROLE, cloud_file);
 
     // Add a column entry for the number of detected features
     auto features_item = new QTreeWidgetItem(item);
@@ -250,7 +257,7 @@ void ExtrinsicHandEyeCalibration2DWidget::loadObservations(const std::string& ob
   ui_->tree_widget_observations->resizeColumnToContents(0);
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::drawImage(QTreeWidgetItem* item, int col)
+void ExtrinsicHandEyeCalibration3DWidget::drawImage(QTreeWidgetItem* item, int col)
 {
   if (item == nullptr)
     return;
@@ -311,7 +318,7 @@ void ExtrinsicHandEyeCalibration2DWidget::drawImage(QTreeWidgetItem* item, int c
   }
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::onCalibrate()
+void ExtrinsicHandEyeCalibration3DWidget::onCalibrate()
 {
   try
   {
@@ -332,7 +339,7 @@ void ExtrinsicHandEyeCalibration2DWidget::onCalibrate()
   }
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::calibrate()
+void ExtrinsicHandEyeCalibration3DWidget::calibrate()
 {
   // Check if there are any observations before continuing
   if (ui_->tree_widget_observations->topLevelItemCount() == 0)
@@ -342,10 +349,9 @@ void ExtrinsicHandEyeCalibration2DWidget::calibrate()
   loadTargetFinder();
 
   // Create the calibration problem
-  ExtrinsicHandEyeProblem2D3D problem;
+  ExtrinsicHandEyeProblem3D3D problem;
   problem.camera_mount_to_camera_guess = camera_transform_guess_widget_->save().as<Eigen::Isometry3d>();
   problem.target_mount_to_target_guess = target_transform_guess_widget_->save().as<Eigen::Isometry3d>();
-  problem.intr = camera_intrinsics_widget_->save().as<CameraIntrinsics>();
 
   for (int i = 0; i < ui_->tree_widget_observations->topLevelItemCount(); ++i)
   {
@@ -362,9 +368,16 @@ void ExtrinsicHandEyeCalibration2DWidget::calibrate()
     }
 
     QString pose_file = item->data(0, POSE_FILE_NAME_ROLE).value<QString>();
-    if (!QFile(image_file).exists())
+    if (!QFile(pose_file).exists())
     {
       error(item, "Pose file does not exist");
+      continue;
+    }
+
+    QString cloud_file = item->data(0, CLOUD_FILE_NAME_ROLE).value<QString>();
+    if (!QFile(cloud_file).exists())
+    {
+      error(item, "Cloud file does not exist");
       continue;
     }
 
@@ -374,8 +387,11 @@ void ExtrinsicHandEyeCalibration2DWidget::calibrate()
       cv::Mat image = cv::imread(image_file.toStdString());
       auto pose = YAML::LoadFile(pose_file.toStdString()).as<Eigen::Isometry3d>();
 
+      pcl::PointCloud<pcl::PointXYZ> cloud;
+      pcl::io::loadPCDFile(cloud_file.toStdString(), cloud);
+
       // Populate an observation
-      Observation2D3D obs;
+      Observation3D3D obs;
       if (ui_->action_static_camera->isChecked())
       {
         obs.to_camera_mount = Eigen::Isometry3d::Identity();
@@ -386,7 +402,9 @@ void ExtrinsicHandEyeCalibration2DWidget::calibrate()
         obs.to_camera_mount = pose;
         obs.to_target_mount = Eigen::Isometry3d::Identity();
       }
-      obs.correspondence_set = target_finder_->findCorrespondences(image);
+
+      Correspondence2D3D::Set corrs = target_finder_->findCorrespondences(image);
+      obs.correspondence_set = get3DCorrespondences(cloud, corrs, image.size[1]);
 
       // Calculate homography error
       RandomCorrespondenceSampler random_sampler(obs.correspondence_set.size(), obs.correspondence_set.size() / 3,
@@ -426,20 +444,20 @@ void ExtrinsicHandEyeCalibration2DWidget::calibrate()
   ss << result_->covariance.printCorrelationCoeffAboveThreshold(0.5) << std::endl;
 
   // Compute the projected 3D error for comparison
-  ss << analyze3dProjectionError(problem, *result_) << std::endl << std::endl;
+  // ss << analyze3dProjectionError(problem, *result_) << std::endl << std::endl;
 
   // Now let's compare the results of our extrinsic calibration with a PnP optimization for every observation.
   // The PnP optimization will give us an estimate of the camera to target transform using our input camera intrinsic
   // parameters We will then see how much this transform differs from the same transform calculated using the results
   // of the extrinsic calibration
-  ExtrinsicHandEyeAnalysisStats stats = analyzeResults(problem, *result_);
-  ss << stats << std::endl << std::endl;
+  // ExtrinsicHandEyeAnalysisStats stats = analyzeResults(problem, *result_);
+  // ss << stats << std::endl << std::endl;
 
   ui_->text_edit_results->clear();
   ui_->text_edit_results->append(QString::fromStdString(ss.str()));
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::onSaveResults()
+void ExtrinsicHandEyeCalibration3DWidget::onSaveResults()
 {
   try
   {
@@ -455,7 +473,7 @@ void ExtrinsicHandEyeCalibration2DWidget::onSaveResults()
   }
 }
 
-void ExtrinsicHandEyeCalibration2DWidget::saveResults(const std::string& file)
+void ExtrinsicHandEyeCalibration3DWidget::saveResults(const std::string& file)
 {
   if (result_ == nullptr)
     throw ICalException("Calibration problem has not yet been solved. Please load the calibration data and run the "

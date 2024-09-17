@@ -1,4 +1,4 @@
-#include <industrial_calibration/gui/extrinsic_hand_eye_calibration_widget.h>
+#include <industrial_calibration/gui/extrinsic_hand_eye_calibration_3d_widget.h>
 #include <filesystem>
 #include <QApplication>
 #include <QMessageBox>
@@ -15,7 +15,7 @@ int main(int argc, char** argv)
   signal(SIGTERM, handleSignal);
 
   // Create the calibration main widget
-  industrial_calibration::ExtrinsicHandEyeCalibrationWidget w;
+  industrial_calibration::ExtrinsicHandEyeCalibration3DWidget w;
   w.setWindowTitle("Extrinsic Hand Eye Calibration");
   w.setWindowIcon(QIcon(":/icons/icon.jpg"));
 

@@ -11,7 +11,7 @@ class QTreeWidgetItem;
 
 namespace Ui
 {
-class ExtrinsicHandEyeCalibration2D;
+class ExtrinsicHandEyeCalibration3D;
 }
 
 namespace industrial_calibration
@@ -21,11 +21,11 @@ class TargetFinderWidget;
 class CameraIntrinsicsWidget;
 class TransformGuess;
 
-class ExtrinsicHandEyeCalibration2DWidget : public QMainWindow
+class ExtrinsicHandEyeCalibration3DWidget : public QMainWindow
 {
 public:
-  explicit ExtrinsicHandEyeCalibration2DWidget(QWidget* parent = nullptr);
-  ~ExtrinsicHandEyeCalibration2DWidget();
+  explicit ExtrinsicHandEyeCalibration3DWidget(QWidget* parent = nullptr);
+  ~ExtrinsicHandEyeCalibration3DWidget();
 
   /**
    * @brief Loads the calibration configuration from file
@@ -62,7 +62,7 @@ protected:
   void loadTargetFinder();
   void drawImage(QTreeWidgetItem* item, int col);
 
-  Ui::ExtrinsicHandEyeCalibration2D* ui_;
+  Ui::ExtrinsicHandEyeCalibration3D* ui_;
   TargetFinderWidget* target_finder_widget_;
   CameraIntrinsicsWidget* camera_intrinsics_widget_;
   TransformGuess* camera_transform_guess_widget_;
