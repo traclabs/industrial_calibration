@@ -1,6 +1,7 @@
 #include <industrial_calibration/target_finders/opencv/charuco_grid_target_finder.h>
 #include <industrial_calibration/core/exceptions.h>
 #include <industrial_calibration/core/serialization.h>
+#include <opencv2/imgproc.hpp>
 
 namespace
 {
@@ -80,10 +81,16 @@ TargetFeatures2D CharucoGridBoardTargetFinder::findTargetFeatures(const cv::Mat&
   // TODO: expose the setting of these parameters
   cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
 
+  // Hack to adaptive threshold the image before passing it to the ArUco detector, so we have
+  // better control over the thresholding process. This is a workaround for the fact that we
+  // didn't have the time to tune the adaptive thresholding parameters for cv::aruco::detectMarkers
+  cv::Mat binary;
+  cv::adaptiveThreshold(image, binary, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 101, -30);
+
   // Detect the ArUco markers
   std::vector<int> marker_ids;
   std::vector<std::vector<cv::Point2f>> marker_corners;
-  cv::aruco::detectMarkers(image, target_.board->dictionary, marker_corners, marker_ids, parameters);
+  cv::aruco::detectMarkers(binary, target_.board->dictionary, marker_corners, marker_ids, parameters);
 
   if (marker_ids.empty())
   {
@@ -93,7 +100,7 @@ TargetFeatures2D CharucoGridBoardTargetFinder::findTargetFeatures(const cv::Mat&
   // Detect the chessboard intersections given the observed ArUco markers
   std::vector<cv::Point2f> charuco_corners;
   std::vector<int> charuco_ids;
-  int detected_corners = cv::aruco::interpolateCornersCharuco(marker_corners, marker_ids, image, target_.board,
+  int detected_corners = cv::aruco::interpolateCornersCharuco(marker_corners, marker_ids, binary, target_.board,
                                                               charuco_corners, charuco_ids);
 
   // Create the map of observed features
