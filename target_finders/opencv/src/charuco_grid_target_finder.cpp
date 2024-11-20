@@ -84,8 +84,10 @@ TargetFeatures2D CharucoGridBoardTargetFinder::findTargetFeatures(const cv::Mat&
   // Hack to adaptive threshold the image before passing it to the ArUco detector, so we have
   // better control over the thresholding process. This is a workaround for the fact that we
   // didn't have the time to tune the adaptive thresholding parameters for cv::aruco::detectMarkers
+  cv::Mat gray;
+  cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
   cv::Mat binary;
-  cv::adaptiveThreshold(image, binary, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 101, -30);
+  cv::adaptiveThreshold(gray, binary, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 101, -30);
 
   // Detect the ArUco markers
   std::vector<int> marker_ids;
