@@ -29,14 +29,15 @@ int main(int argc, char** argv)
       w.loadObservations(argv[2]);
       w.calibrate();
       w.saveResults(argv[3]);
-      QMessageBox::StandardButton ret = QMessageBox::question(nullptr, "Calibration",
-                                                              "Successfully completed calibration and saved results. "
-                                                              "View results in the GUI?");
-      if (ret == QMessageBox::StandardButton::Yes)
-      {
-        w.showMaximized();
-        return app.exec();
-      }
+      QMessageBox::information(nullptr, "Calibration", "Successfully calibrated!");
+      // QMessageBox::StandardButton ret = QMessageBox::question(nullptr, "Calibration",
+      //                                                         "Successfully completed calibration and saved results. "
+      //                                                         "View results in the GUI?");
+      // if (ret == QMessageBox::StandardButton::Yes)
+      // {
+      //   w.showMaximized();
+      //   return app.exec();
+      // }
     }
     catch (const std::exception& ex)
     {
